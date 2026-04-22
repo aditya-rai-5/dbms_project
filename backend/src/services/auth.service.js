@@ -1,9 +1,9 @@
 const bcrypt = require('bcryptjs');
-const { PrismaClient } = require('@prisma/client');
+
 const { sign } = require('../utils/jwt.utils');
 const { ConflictError, UnauthorizedError } = require('../utils/errors');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const register = async ({ email, name, password }) => {
   const existing = await prisma.user.findUnique({ where: { email } });

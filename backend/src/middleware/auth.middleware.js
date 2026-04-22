@@ -1,8 +1,8 @@
 const { verify } = require('../utils/jwt.utils');
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors');
-const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+
+const prisma = require('../config/prisma');
 
 const authenticate = async (req, res, next) => {
   try {

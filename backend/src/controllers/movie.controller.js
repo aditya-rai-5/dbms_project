@@ -1,8 +1,8 @@
 const tmdbService = require('../services/tmdb.service');
 const { success, paginated } = require('../utils/response.utils');
 
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+
+const prisma = require('../config/prisma');
 
 const getMovies = async (req, res, next) => {
   try {

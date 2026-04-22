@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+
 const axios = require('axios');
 
-const prisma = new PrismaClient();
+const prisma = require('../src/config/prisma');
 
 const TMDB_API_KEY = process.env.TMDB_API_KEY || '00ce4434ecb42ea6fe9649ab13ef3302';
 

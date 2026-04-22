@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+
 const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const joinWaitlist = async (userId, showId, seatsWanted = 1) => {
   const show = await prisma.show.findUnique({ where: { id: Number(showId) } });

@@ -1,9 +1,9 @@
 require('dotenv').config();
 const app = require('./src/app');
 const config = require('./src/config/config');
-const { PrismaClient } = require('@prisma/client');
 
-const prisma = new PrismaClient();
+
+const prisma = require('./src/config/prisma');
 
 async function start() {
   try {

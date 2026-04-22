@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+
 const { ValidationError, NotFoundError, ConflictError, ForbiddenError } = require('../utils/errors');
 const waitlistService = require('./waitlist.service');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const cancelBooking = async (bookingId, userId) => {
   const booking = await prisma.booking.findUnique({

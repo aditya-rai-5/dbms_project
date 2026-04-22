@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+
 const { NotFoundError } = require('../utils/errors');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const getShowsByMovie = async (movieId, { date, city } = {}) => {
   const where = { movieId: Number(movieId) };

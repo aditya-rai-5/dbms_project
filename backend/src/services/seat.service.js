@@ -1,8 +1,8 @@
-const { PrismaClient } = require('@prisma/client');
+
 const { ValidationError, NotFoundError, ConflictError } = require('../utils/errors');
 const config = require('../config/config');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 const lockSeats = async (showId, seatIds, userId) => {
   const show = await prisma.show.findUnique({ where: { id: Number(showId) } });

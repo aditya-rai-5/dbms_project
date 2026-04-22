@@ -1,7 +1,7 @@
-const { PrismaClient } = require('@prisma/client');
+
 const { NotFoundError, ConflictError } = require('../utils/errors');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 /**
  * Simulate payment: validates seat locks, creates a CONFIRMED booking + SUCCESS payment

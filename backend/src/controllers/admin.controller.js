@@ -1,10 +1,10 @@
-const { PrismaClient } = require('@prisma/client');
+
 const movieService = require('../services/movie.service');
 const tmdbService = require('../services/tmdb.service');
 const showService = require('../services/show.service');
 const { success, created, paginated } = require('../utils/response.utils');
 
-const prisma = new PrismaClient();
+const prisma = require('../config/prisma');
 
 // Movies
 const adminGetMovies = async (req, res, next) => {
