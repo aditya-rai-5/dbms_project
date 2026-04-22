@@ -8,7 +8,9 @@ router.get('/stats', adminController.adminGetStats);
 router.get('/genres', adminController.getGenres);
 
 // Movies
+router.get('/movies', adminController.adminGetMovies);
 router.post('/movies', adminController.adminCreateMovie);
+router.post('/movies/tmdb', adminController.addMovieFromTmdb);
 router.put('/movies/:id', adminController.adminUpdateMovie);
 router.delete('/movies/:id', adminController.adminDeleteMovie);
 
@@ -18,6 +20,7 @@ router.post('/theatres', adminController.createTheatre);
 router.post('/screens', adminController.createScreen);
 
 // Shows
+router.get('/shows', adminController.adminGetShows);
 router.post('/shows', adminController.adminCreateShow);
 
 // Bookings

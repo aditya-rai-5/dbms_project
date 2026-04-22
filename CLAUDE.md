@@ -1,13 +1,14 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides comprehensive guidance to Claude Code (claude.ai/code) when working with the **ShowsNow** repository.
 
 ## Project Overview
 
-**ShowsNow** — a full-stack movie ticket booking platform (BookMyShow clone, rebranded).
+**ShowsNow** is a premium, full-stack movie ticket booking platform (BookMyShow clone) designed with a modern dark-mode aesthetic and robust transactional logic.
 
-- **Frontend**: React 18 + Tailwind CSS (CRA), in `frontend/`
-- **Backend**: Node.js + Express + PostgreSQL via Prisma ORM, in `backend/`
+- **Stack**: React 18, Node.js + Express, PostgreSQL + Prisma, Tailwind CSS.
+- **Core Strategy**: Modular MVC on the backend, Service-based architecture on the frontend.
+- **Key Features**: TMDB Integration, Pessimistic Seat Locking, Payment Gateway integration (mockable), Waitlist system, Admin Management System.
 
 ---
 
@@ -28,112 +29,81 @@ npm run prisma:push      # Push schema to DB (no migration history)
 npm run prisma:migrate   # Create and apply migration
 npm run prisma:generate  # Regenerate Prisma client after schema changes
 npm run prisma:studio    # Open Prisma Studio GUI
-npm run seed       # Seed database with movies, theatres, shows
-```
-
-### Database setup (first time)
-```bash
-# 1. Create PostgreSQL database
-createdb showsnow_db
-
-# 2. In backend/ — copy .env.example to .env and set DATABASE_URL
-cp .env.example .env
-
-# 3. Push schema and seed
-cd backend && npm install && npm run prisma:push && npm run seed
+npm run seed             # Seed with mock data (admin/user, movies, shows)
 ```
 
 ---
 
-## Architecture
+## Architecture & Flows
 
 ### Backend (`backend/src/`)
 
-**Modular MVC pattern:**
-```
-config/      — environment config (config.js)
-controllers/ — thin HTTP handlers, delegate to services
-services/    — all business logic (auth, movie, show, booking, payment, seat, waitlist)
-routes/      — Express routers, grouped by domain
-middleware/  — auth (JWT), validate (express-validator), rateLimiter, errorHandler
-utils/       — jwt.utils, response.utils, errors (AppError hierarchy)
-prisma/      — schema.prisma, seed.js
-```
+**Pattern**: `Routes -> Middleware -> Controllers -> Services -> Prisma -> DB`
 
-**Request flow:** `routes → middleware → controller → service → Prisma → DB`
-
-**Error handling:** All errors thrown as `AppError` subclasses (NotFoundError, ValidationError, etc.) and caught by `error.middleware.js` which formats unified JSON responses.
-
-**API base:** `http://localhost:5000/api`
-
-Key route groups:
-- `/api/auth` — register, login, google OAuth, /me
-- `/api/movie` — TMDB-compatible paths (`/top_rated`, `/popular`, `/upcoming`, `/:id/credits`, `/:id/similar`, `/:id/recommendations`)
-- `/api/movies/:id` — movie detail + `/api/movies/:id/shows`
-- `/api/shows/:id` — show detail, seats, lock/unlock seats, waitlist
-- `/api/bookings` — CRUD for user bookings
-- `/api/payments` — create Razorpay order, verify payment
-- `/api/waitlist` — user's waitlist entries
-- `/api/admin` — protected admin endpoints (stats, movies CRUD, theatres, screens, shows, all bookings)
+- **Services**: All business logic resides here (e.g., `seat.service.js` handles locking, `booking.service.js` handles transactions).
+- **Middleware**:
+    - `auth.middleware.js`: JWT verification and `requireAdmin` role check.
+    - `error.middleware.js`: Centralized error handling using `AppError` subclasses.
+    - `validate.middleware.js`: Request body validation using `express-validator`.
+- **Seat Locking**: Uses a `SeatLock` table.
+    - Locking is pessimistic: `POST /api/shows/:id/lock` creates a reservation for 10 minutes.
+    - Expired locks are auto-purged on each lock request.
+- **Mock Payment**: If `RAZORPAY_KEY_ID` is missing, the system enters mock mode (auto-confirms orders).
 
 ### Frontend (`frontend/src/`)
 
-**Structure:**
-```
-services/        — API service layer (api.service.js, auth.service.js, movie.service.js, booking.service.js)
-context/         — Auth.context.jsx (JWT auth state), Movie.context.jsx (current movie + payment modal)
-pages/           — Home.Page, Movie.Page, Booking.Page, BookingHistory.Page, BookingDetail.Page, Play.Page, 404
-components/      — Navbar, HeroCarousel, PosterSlider, Poster, Cast, MovieHero, MovieInfo, Modal,
-                   SeatSelector, Booking/ShowTimings, Footer, Loader, PaymentModel
-layout/          — Default.layout.jsx (Navbar+Footer HOC), Movie.layout.jsx (Navbar-only HOC)
-```
+- **State Management**:
+    - `Auth.context.jsx`: Global user state, `login/logout`, and token persistence in `localStorage`.
+    - `Movie.context.jsx`: Current movie state and payment modal control.
+- **Service Layer**: `api.service.js` (Axios wrapper) + domain-specific services (`movie.service.js`, `admin.service.js`).
+- **Layouts**:
+    - `Default.layout`: Navbar + Footer.
+    - `Movie.layout`: Specialized for movie detail views.
+    - `Admin.layout`: Sidebar-based layout for the dashboard.
+- **Booking Flow**: Movie Page → Show/Time Selection → Seat Selector (locks seats) → Payment Modal → Booking Success.
 
-**Auth:** JWT stored in `localStorage` under key `token`. `AuthProvider` wraps the app and exposes `{ user, login, register, googleLogin, logout }`. The `api.service.js` Axios instance automatically attaches `Bearer <token>` and handles 401 globally.
+---
 
-**API calls:** All frontend API calls go through `src/services/api.service.js` (Axios instance pointing to `REACT_APP_API_URL`). Never import Axios directly in components — use the service files.
+## Data Model (Summary)
 
-**Booking flow:**
-1. Movie Page → "Book Tickets" → `ShowTimings.Component` (date picker + theatre/show grid)
-2. Select show → `/show/:showId/book` (Booking.Page)
-3. Select seats → Lock Seats (backend lock for 10 min) → Pay → verify → `/bookings/:id`
-4. If show is full → Waitlist join UI
+- **User**: `id, email, passwordHash, role (USER/ADMIN)`
+- **Movie**: `tmdbId` (unique), `title`, `overview`, `backdropPath`, `posterPath`, etc.
+- **Theatre/Screen/Seat**: Hierarchical structure. `Seat` belongs to `Screen`.
+- **Show**: Connects `Movie` and `Screen` at a specific `showTime`.
+- **Booking**: Links `User`, `Show`, and multiple `BookingSeat`s.
+- **SeatLock**: Temporary reservation for `(seatId, showId)` with `expiresAt`.
+- **WaitlistEntry**: Tracks users waiting for a full `Show` to become available.
 
-### Database Schema
+---
 
-Key relationships:
-- `Movie` ←→ `Genre` (many-to-many)
-- `Movie` → `CastMember` (one-to-many)
-- `Theatre` → `Screen` → `Seat` (one-to-many chain)
-- `Show` links `Movie` + `Screen`
-- `Booking` → `User` + `Show` + `BookingSeat[]` + `Payment`
-- `SeatLock` — unique on `(seatId, showId)`, has `expiresAt` for auto-expiry
-- `WaitlistEntry` — unique on `(userId, showId)`
+## Admin Management System
 
-**Seat locking strategy:** Pessimistic locking via `SeatLock` table. Expired locks are purged on each new lock request. Booking creation validates active locks belong to the requesting user.
+The Admin Dashboard (`/admin`) allows full control over the platform:
+- **Stats**: Total Users, Movies, Bookings, and Revenue.
+- **Movies**: Add from TMDB (auto-fetches metadata/cast) or manually.
+- **Theatres**: Manage locations and screens.
+- **Screens**: Automatic seat generation based on rows/seats-per-row.
+- **Shows**: Schedule movies on screens with base pricing.
+- **Bookings**: View and filter all system-wide bookings.
 
-### Tailwind Custom Colors
-- `darkBackground-{50..900}` — dark nav/background shades
-- `premier-{50..900}` — blue-grey shades for premier section
+## Environment Variables
 
-### Environment Variables
+### Backend (`.env`)
+- `DATABASE_URL`: PostgreSQL connection string.
+- `JWT_SECRET`, `JWT_EXPIRES_IN`: Authentication config.
+- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`: Optional; omitting enables Mock Mode.
+- `FRONTEND_URL`: For CORS configuration.
 
-Frontend (`.env`):
-- `REACT_APP_API_URL` — backend base URL (default: `http://localhost:5000/api`)
-- `REACT_APP_GOOGLE_CLIENT_ID`
-- `REACT_APP_RAZORPAY_KEY`
+### Frontend (`.env`)
+- `REACT_APP_API_URL`: Backend base URL (default: `http://localhost:5000/api`).
+- `REACT_APP_RAZORPAY_KEY`: Razorpay public key.
 
-Backend (`.env`):
-- `DATABASE_URL` — PostgreSQL connection string
-- `JWT_SECRET`, `JWT_EXPIRES_IN`
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
-- `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`
-- `SEAT_LOCK_MINUTES` (default: 10)
-- `FRONTEND_URL` (for CORS)
+---
 
-### Payment (Razorpay)
-If `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` are not set, the backend runs in **mock mode** — payment orders return `mock: true` and auto-confirm without hitting Razorpay. This allows full booking flow testing without credentials.
+## Development Standards
 
-### Seed Data (after `npm run seed`)
-- Admin: `admin@showsnow.com` / `admin123`
-- User: `user@showsnow.com` / `user123`
-- 8 movies, 5 theatres, 15 screens, ~240 shows (next 3 days × 2 times each)
+- **Error Handling**: Always use `throw new AppError(message, status)` in services.
+- **Responses**: Use `success(res, data)` and `created(res, data)` from `utils/response.utils`.
+- **Frontend Calls**: Never use `axios` directly in components; always use the `services/` layer.
+- **Tailwind**: Use the custom `darkBackground` and `premier` color palettes defined in `tailwind.config.js`.
+- **Consistency**: IDs are generally `Int` (autoincrement) except for `User` and `Booking` (CUID/String).

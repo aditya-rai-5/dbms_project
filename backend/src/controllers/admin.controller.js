@@ -1,16 +1,69 @@
 const { PrismaClient } = require('@prisma/client');
 const movieService = require('../services/movie.service');
+const tmdbService = require('../services/tmdb.service');
 const showService = require('../services/show.service');
 const { success, created, paginated } = require('../utils/response.utils');
 
 const prisma = new PrismaClient();
 
 // Movies
+const adminGetMovies = async (req, res, next) => {
+  try {
+    const movies = await prisma.movie.findMany({
+      orderBy: { createdAt: 'desc' }
+    });
+    success(res, movies);
+  } catch (err) { next(err); }
+};
+
 const adminCreateMovie = async (req, res, next) => {
   try {
     const movie = await movieService.createMovie(req.body);
     created(res, movie, 'Movie created');
   } catch (err) { next(err); }
+};
+
+const addMovieFromTmdb = async (req, res, next) => {
+  try {
+    const { tmdbId } = req.body;
+    if (!tmdbId) {
+      return res.status(400).json({ success: false, message: 'tmdbId is required' });
+    }
+    
+    // Check if it already exists
+    const existing = await prisma.movie.findUnique({ where: { tmdbId: Number(tmdbId) } });
+    if (existing) {
+      return res.status(400).json({ success: false, message: 'Movie already exists in database' });
+    }
+
+    // Fetch from TMDB
+    const tmdbData = await tmdbService.getMovieById(tmdbId);
+    
+    // Format for Prisma creation using correct camelCase
+    const dataToCreate = {
+      tmdbId: Number(tmdbData.id),
+      title: tmdbData.title,
+      originalTitle: tmdbData.original_title,
+      overview: tmdbData.overview,
+      backdropPath: tmdbData.backdrop_path,
+      posterPath: tmdbData.poster_path,
+      runtime: tmdbData.runtime,
+      releaseDate: tmdbData.release_date ? new Date(tmdbData.release_date) : null,
+      voteAverage: tmdbData.vote_average,
+      voteCount: tmdbData.vote_count,
+      popularity: tmdbData.popularity,
+      language: tmdbData.original_language || 'en',
+      adult: tmdbData.adult || false,
+    };
+
+    const movie = await prisma.movie.create({
+      data: dataToCreate
+    });
+
+    created(res, movie, 'Movie added from TMDB');
+  } catch (err) {
+    next(err);
+  }
 };
 
 const adminUpdateMovie = async (req, res, next) => {
@@ -79,6 +132,19 @@ const createScreen = async (req, res, next) => {
 };
 
 // Shows
+const adminGetShows = async (req, res, next) => {
+  try {
+    const shows = await prisma.show.findMany({
+      include: {
+        movie: { select: { id: true, title: true } },
+        screen: { include: { theatre: { select: { name: true, city: true } } } },
+      },
+      orderBy: { showTime: 'desc' },
+    });
+    success(res, shows);
+  } catch (err) { next(err); }
+};
+
 const adminCreateShow = async (req, res, next) => {
   try {
     const show = await showService.createShow(req.body);
@@ -139,7 +205,7 @@ const getGenres = async (req, res, next) => {
 };
 
 module.exports = {
-  adminCreateMovie, adminUpdateMovie, adminDeleteMovie,
+  adminGetMovies, adminCreateMovie, addMovieFromTmdb, adminUpdateMovie, adminDeleteMovie,
   createTheatre, getTheatres, createScreen,
-  adminCreateShow, adminGetAllBookings, adminGetStats, getGenres,
+  adminGetShows, adminCreateShow, adminGetAllBookings, adminGetStats, getGenres,
 };
