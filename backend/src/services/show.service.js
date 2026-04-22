@@ -51,6 +51,58 @@ const getShowsByMovie = async (movieId, { date, city } = {}) => {
   }));
 };
 
+const getAllShows = async ({ date, city } = {}) => {
+  const where = {};
+
+  if (date) {
+    const start = new Date(date);
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(date);
+    end.setHours(23, 59, 59, 999);
+    where.showTime = { gte: start, lte: end };
+  } else {
+    where.showTime = { gte: new Date() };
+  }
+
+  // Filter directly at the database level for efficiency since there are 15,000 shows
+  if (city) {
+    where.screen = {
+      theatre: {
+        city: { contains: city, mode: 'insensitive' }
+      }
+    };
+  }
+
+  const shows = await prisma.show.findMany({
+    where,
+    include: {
+      screen: {
+        include: {
+          theatre: { select: { id: true, name: true, address: true, city: true, state: true } },
+        },
+      },
+      movie: { select: { id: true, title: true, originalTitle: true, posterPath: true, runtime: true } },
+    },
+    orderBy: { showTime: 'asc' },
+  });
+
+  return shows.map(show => ({
+    id: show.id,
+    showTime: show.showTime,
+    basePrice: show.basePrice,
+    totalSeats: show.totalSeats,
+    bookedSeats: show.bookedSeats,
+    availableSeats: show.totalSeats - show.bookedSeats,
+    isFull: show.bookedSeats >= show.totalSeats,
+    movie: show.movie,
+    screen: {
+      id: show.screen.id,
+      name: show.screen.name,
+      theatre: show.screen.theatre,
+    },
+  }));
+};
+
 const getShowById = async (showId) => {
   const show = await prisma.show.findUnique({
     where: { id: Number(showId) },
@@ -133,4 +185,4 @@ const createShow = async (data) => {
   return show;
 };
 
-module.exports = { getShowsByMovie, getShowById, getShowSeats, createShow };
+module.exports = { getShowsByMovie, getAllShows, getShowById, getShowSeats, createShow };

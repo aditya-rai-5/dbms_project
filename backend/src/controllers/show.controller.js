@@ -10,6 +10,14 @@ const getShowsByMovie = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const getAllShows = async (req, res, next) => {
+  try {
+    const { date, city } = req.query;
+    const shows = await showService.getAllShows({ date, city });
+    success(res, shows);
+  } catch (err) { next(err); }
+};
+
 const getShowById = async (req, res, next) => {
   try {
     const show = await showService.getShowById(req.params.id);
@@ -31,4 +39,4 @@ const createShow = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { getShowsByMovie, getShowById, getShowSeats, createShow };
+module.exports = { getShowsByMovie, getAllShows, getShowById, getShowSeats, createShow };

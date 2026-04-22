@@ -6,6 +6,7 @@ const { authenticate } = require('../middleware/auth.middleware');
 const { body } = require('express-validator');
 const { validate } = require('../middleware/validate.middleware');
 
+router.get('/', showController.getAllShows);
 router.get('/:id', showController.getShowById);
 router.get('/:id/seats', showController.getShowSeats);
 
